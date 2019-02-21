@@ -60,7 +60,7 @@ def compare_files():
     mismatched_files = list(set(get_md5()) - set(get_etag()))
     s3_path = []
     for item in mismatched_files:
-        result = search(' (.*) :', item).group(1)
+        result = search('(.*) :', item).group(1)
         s3_path.append(result)
     sync_s3_objects(s3_path)
 
