@@ -1,8 +1,12 @@
-from boto3 import client
+__author__ = "Sam Gibson"
+__version__ = "1.1"
+__date__ = "20feb2019"
+
 from os import path, walk
 from hashlib import md5
 from re import search
 from mimetypes import guess_type  # https://github.com/boto/boto3/issues/548
+from boto3 import client
 
 # Create an S3 client
 s3 = client('s3')
@@ -12,47 +16,53 @@ local_repo = "localpath"
 
 
 # Removes outdated files from S3, uploading and replacing them with the newer, updated local files.
-def update_s3_objects(_s3_path):
-    if _s3_path:
-        for x in range(0, len(_s3_path)):
-            mimetype, _ = guess_type(local_repo + _s3_path[x])
+def sync_s3_objects(_s3_path):
+    if _s3_path:  # if outdated files exist ...
+        for value in _s3_path:
+            mimetype, _ = guess_type(local_repo + value)
             if mimetype is None:
                 raise Exception("Failed to guess mimetype")
-            s3.delete_object(Bucket=bucket_name, Key=_s3_path[x])
-            print("Deleted: %s/%s from S3" % (bucket_name, _s3_path[x]))
-            s3.upload_file(local_repo + _s3_path[x], bucket_name, _s3_path[x], ExtraArgs={'ACL': 'public-read', 'ContentType': mimetype})
-            print("Uploaded %s to %s bucket." % (_s3_path[x], bucket_name))
+            s3.delete_object(Bucket=bucket_name, Key=value)
+            print("Deleted: %s/%s from S3" % (bucket_name, value))
+            s3.upload_file(local_repo + value, bucket_name, value, ExtraArgs={'ACL': 'public-read',
+                                                                              'ContentType': mimetype})
+            print("Uploaded %s to %s bucket." % (value, bucket_name))
     else:
         print("No file updates required for S3.")
-        exit = input("Press 'enter' key to exit...")
 
 
 # Retrieve the ETag from head of each Object in S3.
-s3_list_etag = []
-for val in s3.list_objects(Bucket=bucket_name)['Contents']:
-    head = s3.head_object(Bucket=bucket_name, Key=val['Key'])
-    s3_list_etag.append(" " + val['Key'] + " : " + head['ETag'])
+def get_etag():
+    s3_list_etag = []
+    for obj in s3.list_objects(Bucket=bucket_name)['Contents']:
+        head = s3.head_object(Bucket=bucket_name, Key=obj['Key'])
+        s3_list_etag.append(obj['Key'] + " : " + head['ETag'])
+    return s3_list_etag
 
 
 # Retrieve the MD5 Hash Value of each local file.
-local_list_md5 = []
-for localpath, subdirs, files in walk(local_repo):
-    for name in files:
-        s3_val = path.join(localpath.replace(local_repo, ""), name.replace("\\", "/"))
-        local_val = path.join(localpath.replace("\\", "/"), name.replace("\\", "/"))
-        hash_md5 = md5()
-        with open(local_val, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                hash_md5.update(chunk)
-            local_list_md5.append(" " + s3_val.replace("\\", "/") + " : " + '"' + hash_md5.hexdigest() + '"')
+def get_md5():
+    local_list_md5 = []
+    for localpath, subdirs, files in walk(local_repo):
+        for file in files:
+            s3_val = path.join(localpath.replace(local_repo, ""), file).replace("\\", "/")
+            local_val = path.join(localpath, file).replace("\\", "/")
+            hash_md5 = md5()
+            with open(local_val, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_md5.update(chunk)
+                local_list_md5.append(s3_val + " : " + '"' + hash_md5.hexdigest() + '"')
+    return local_list_md5
 
 
-# Compare MD5 and ETag and files, removing up-to-date files from the list.
-mismatched_files = list(set(local_list_md5) - set(s3_list_etag))
-s3_path = []
-for item in mismatched_files:
-    result = search(' (.*) :', item).group(1)
-    s3_path.append(result.replace("\\", "/"))
+# Compare MD5 and ETag and files, removing up-to-date (unmodified) files from the list.
+def compare_files():
+    mismatched_files = list(set(get_md5()) - set(get_etag()))
+    s3_path = []
+    for item in mismatched_files:
+        result = search(' (.*) :', item).group(1)
+        s3_path.append(result)
+    sync_s3_objects(s3_path)
 
 
-update_s3_objects(s3_path)
+compare_files()
