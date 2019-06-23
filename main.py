@@ -12,8 +12,8 @@ from botocore.exceptions import ClientError
 # Create an S3 client
 s3 = client('s3')
 
-bucket_name = 'www.sam-gibson.co.uk'
-local_repo = "E:/Documents/Repository/HTML/%s/" % bucket_name
+bucket_name = 'mys3bucket'
+local_repo = 'pathtobucket'
 
 
 # Removes outdated files from S3, uploading and replacing them with the newer, updated local files.
