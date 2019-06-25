@@ -11,6 +11,6 @@ Here's how to get started:
 5. Outdated files will be indentified and replaced, newly discovered files are uploaded and omitted files are ignored.
 ##
 
-#####Note:
+##### Note:
 Boto requires configuration before use.
 Please refer to [this](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html?fbclid=IwAR2LlrS4O2gYH6xAF4QDVIH2Q2tzfF_VZ6loM3XfXsPAOR4qA-pX_qAILys) guide to set up your credentials.
