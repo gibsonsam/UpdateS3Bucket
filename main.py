@@ -13,7 +13,7 @@ from botocore.exceptions import ClientError
 s3 = client('s3')
 
 bucket_name = 'mys3bucket'
-local_repo = 'path\\to\\bucket\\'
+local_repo = 'path\\to\\repo\\'
 
 
 # Removes outdated files from S3, uploading and replacing them with the newer, updated local files.
