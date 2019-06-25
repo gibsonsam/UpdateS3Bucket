@@ -1,6 +1,6 @@
 __author__ = "Sam Gibson"
-__version__ = "2.0"
-__date__ = "23jun2019"
+__version__ = "2.1"
+__date__ = "25jun2019"
 
 from os import path, walk
 from hashlib import md5
@@ -13,7 +13,7 @@ from botocore.exceptions import ClientError
 s3 = client('s3')
 
 bucket_name = 'mys3bucket'
-local_repo = 'pathtobucket'
+local_repo = 'path\\to\\bucket\\'
 
 
 # Removes outdated files from S3, uploading and replacing them with the newer, updated local files.
@@ -49,9 +49,15 @@ def upload(file, args, exists):
 # Retrieve the ETag from head of each Object in S3.
 def get_etag():
     s3_list_etag = []
-    for obj in s3.list_objects(Bucket=bucket_name)['Contents']:
-        head = s3.head_object(Bucket=bucket_name, Key=obj['Key'])
-        s3_list_etag.append(obj['Key'] + " : " + head['ETag'])
+    try:
+        for obj in s3.list_objects(Bucket=bucket_name)['Contents']:
+            head = s3.head_object(Bucket=bucket_name, Key=obj['Key'])
+            s3_list_etag.append(obj['Key'] + " : " + head['ETag'])
+    except ClientError as e:
+        if e.response['ResponseMetadata']['HTTPStatusCode'] == 403:
+            print("[Access Denied] Bucket doesn't exist or client has insufficient permissions.")
+        else: print("Unexpected Error %s" % e)
+        exit()
     return s3_list_etag
 
 
@@ -85,6 +91,9 @@ def get_omitted_files():
 
 # Compare MD5 and ETag and files, removing up-to-date (unmodified) files from the list.
 def compare_files():
+    if not path.exists(local_repo):
+        print("[Directory not found] The specified directory does not exist: %s" % local_repo)
+        return
     outdated_files = list(set(get_md5()) - set(get_etag()))
     s3_file_path = []
     for file in outdated_files:
